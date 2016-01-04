@@ -12,6 +12,8 @@ import bmesh
 from . import Triangulation
 import math
 
+def INCHESPERMETER() return 39.3700787
+
 class MaterialGrouping:
     '''Just a small class to hold the potential maps as they are read-in'''
     def __init__(self):
@@ -384,7 +386,7 @@ def ImportClipboardData(operator, context,
     if True:
         print("VERTICES")
         for i,v in enumerate(sparkData.vertexChunk.vertices):
-            print("    ",i,":",(v.x*39.37,v.y*39.37,v.z*39.37))
+            print("    ",i,":",(v.x*INCHESPERMETER(),v.y*INCHESPERMETER(),v.z*INCHESPERMETER()))
         print("EDGES")
         for i,e in enumerate(sparkData.edgeChunk.edges):
             print("    ",i,":",e.a,"-->",e.b,"(smooth)" if e.smooth else "(sharp)")
@@ -420,7 +422,7 @@ def ImportClipboardData(operator, context,
     verts = []
     CORRECT_UNIT_FACTOR = 1.0
     if correct_units:
-        CORRECT_UNIT_FACTOR = 39.37
+        CORRECT_UNIT_FACTOR = INCHESPERMETER()
     for vertex in sparkData.vertexChunk.vertices:
         if correct_axes:
             verts.append(bm.verts.new((vertex.z*CORRECT_UNIT_FACTOR,vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR)))

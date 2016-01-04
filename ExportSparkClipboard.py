@@ -11,6 +11,8 @@ import bmesh
 import math
 import os
 
+def INCHESPERMETER() return 39.3700787
+
 def FindMaterial(m, materials):
     try:
         materials.index(m)
@@ -249,7 +251,7 @@ def ExportClipboardData(operator, context,
     scene = bpy.context.scene
     obs = bpy.context.selected_objects if selection_only else bpy.context.visible_objects
     
-    scaleMat = Matrix.Scale(1.0/39.37,4)
+    scaleMat = Matrix.Scale(1.0/INCHESPERMETER(),4)
     
     materials = []
     
@@ -257,7 +259,7 @@ def ExportClipboardData(operator, context,
     
     CORRECT_UNIT_FACTOR = 1.0
     if (correct_units):
-        CORRECT_UNIT_FACTOR = 39.37
+        CORRECT_UNIT_FACTOR = INCHESPERMETER()
     
     for object in obs:
         if not object.type == 'MESH':
