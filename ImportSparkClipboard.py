@@ -12,7 +12,7 @@ import bmesh
 from . import Triangulation
 import math
 
-def INCHESPERMETER() return 39.3700787
+def INCHESPERMETER(): return 39.3700787
 
 class MaterialGrouping:
     '''Just a small class to hold the potential maps as they are read-in'''

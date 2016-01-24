@@ -11,7 +11,7 @@ import bmesh
 import math
 import os
 
-def INCHESPERMETER() return 39.3700787
+def INCHESPERMETER(): return 39.3700787
 
 def FindMaterial(m, materials):
     try:
