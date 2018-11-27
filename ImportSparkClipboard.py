@@ -379,8 +379,7 @@ def ImportClipboardData(operator, context,
         import_textures = False
         print("WARNING: None of the texture paths are valid.  Switching texture import off.")
     data = ClipUtils.GetClipboardAsString()
-    sparkData = SparkClasses.SparkMeshChunkClipboard()
-    sparkData.constructFromBinString(data)
+    sparkData = SparkClasses.SparkMeshChunkClipboard(data)
     
     ###DEBUG PRINTING###
     if True:

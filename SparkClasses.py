@@ -6,19 +6,34 @@
 
 import struct
 
+class SparkPropChunksClipboard:
+    """Contains all prop chunk data."""
+    def __init__(self, data):
+        
+        sD = SparkData(data)
+        
+        if (sD.readL() != 1):
+            raise SparkError("Data in clipboard doesn't appear to be valid (header dword not 1)")
+        
+        currentPosition = sD.dPt
+        nextChunk = currentPosition + sD.readL()
+        while not sD.doneReading():
+            
+        
+
 class SparkMeshChunkClipboard:
     """Contains all the sub-chunks that make up the mesh chunk"""
-    def __init__(self):
+    def __init__(self, data):
         self.materialChunk = None
         self.vertexChunk = None
         self.edgeChunk = None
         self.faceChunk = None
         self.mappingChunk = None
-    def constructFromBinString(self, data):
+        
         sD = SparkData(data)
 
         if (sD.readL() != 1):
-            raise SparkError("Data in clipboard doesn't appear to be valid (header byte not 1???)")
+            raise SparkError("Data in clipboard doesn't appear to be valid (header dword not 1)")
         
         rem = sD.readL() + 4
 
@@ -313,6 +328,8 @@ class SparkData: ###Spark binary data
         self.data = data
         self.dPt = 0
         
+    def doneReading(self):
+        return len(self.data) <= self.dPt
         
     def readL(self): ### Read 4 byte integer
         """Reads the next 4-byte integer from the data, and returns it"""
