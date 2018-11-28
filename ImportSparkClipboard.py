@@ -12,6 +12,7 @@ import bmesh
 from . import Triangulation
 import math
 from mathutils import Vector
+from mathutils import Euler
 
 validPaths = []
 
@@ -440,6 +441,8 @@ def CreateMeshForSparkModel(model):
     
     mesh.update(calc_edges=True)
     mesh.normals_split_custom_set(custom_normals)
+    
+    return mesh
 
 
 def LoadMeshDataForStaticProp(relativeFilePath):
@@ -476,13 +479,14 @@ def GetMeshDataForStaticProp(relativeFilePath):
     return LoadMeshDataForStaticProp(relativeFilePath)
 
 
-def AddProp(prop, validPaths):
+def AddProp(prop, correct_units):
     
     # DEBUG
     print("AddProp")
     
     objData = GetMeshDataForStaticProp(prop.modelFilePath)
     if objData == None:
+        print("no data")
         return
     
     obj = bpy.data.objects.new("StaticProp", objData)
@@ -490,6 +494,13 @@ def AddProp(prop, validPaths):
     
     # add materials
     # TODO bit of a scope issue here... materials are loaded with the mesh... which isn't known at the object level :/
+    
+    # orient the object
+    sceneScale = INCHESPERMETER() if correct_units else 1.0
+    
+    obj.location = CycleVector(prop.origin) * sceneScale
+    obj.rotation_euler = Euler(prop.angles, 'XYZ')
+    obj.scale = CycleVector(prop.scale) * sceneScale
 
 
 def ImportClipboardData(operator, context,
@@ -693,6 +704,6 @@ def ImportClipboardData(operator, context,
     
     # Import props now
     for prop in sparkData.entityData.staticProps:
-        AddProp(prop, validPaths)
+        AddProp(prop, correct_units)
     
     
