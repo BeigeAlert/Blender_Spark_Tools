@@ -17,8 +17,11 @@ bl_info = {
     "category": "Import-Export"}
     
 import bpy
+import importlib
 
 from bpy.props import (BoolProperty, StringProperty)
+from . import ImportSparkClipboard
+from . import ExportSparkClipboard
 
 class ImportSparkData(bpy.types.Operator):
     """Imports spark data from the clipboard"""
@@ -47,36 +50,35 @@ class ImportSparkData(bpy.types.Operator):
         
     tex_dir_1 = StringProperty(
         name = "Game Directory",
-        description = "The script needs to know where the game textures are so it can make the proper associations when importing and exporting.  Example: \"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Natural Selection 2\\ns2\\\"",
+        description = "The script needs to know where the game files are so it can make the proper associations when importing and exporting.  Example: \"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Natural Selection 2\\ns2\\\"",
         default = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Natural Selection 2\\ns2\\",
         )
     
     tex_dir_2 = StringProperty(
         name = "Alternate Directory 1",
-        description="An optional, additional directory to search for textures.  If you have custom textures included via a mod, this is where you should list the path to your \"output\" folder.  (eg. \"c:\\projects\\ns2mods\\myAwesomeLevelMod\\output\\ )",
+        description="An optional, additional directory to search for game files.  If you have custom textures/models included via a mod, this is where you should list the path to your \"output\" folder.  (eg. \"c:\\projects\\ns2mods\\myAwesomeLevelMod\\output\\ )",
         default = "",
         )
     
     tex_dir_3 = StringProperty(
         name = "Alternate Directory 2",
-        description="Another optional, additional directory to search for textures.",
+        description="Another optional, additional directory to search for game files.",
         default = "",
         )
     
     tex_dir_4 = StringProperty(
         name = "Alternate Directory 3",
-        description="YET ANOTHER optional, additional directory to search for textures.",
+        description="YET ANOTHER optional, additional directory to search for game files.",
         default = "",
         )
     
     tex_dir_5 = StringProperty(
         name = "Alternate Directory 4",
-        description="You thought it was over with #3... but you were wrong... DEAD WRONG!  Here we are: THE FOURTH AND FINAL ALTERNATE TEXTURE DIRECTORY!!! MUAHAHAHAHAHAHAHA!!!",
+        description="You thought it was over with #3... but you were wrong... DEAD WRONG!  Here we are: THE FOURTH AND FINAL ALTERNATE GAME FILES DIRECTORY!!! MUAHAHAHAHAHAHAHA!!!",
         default = "",
         )
 
     def execute(self, context):
-        from . import ImportSparkClipboard
         keywords = self.as_keywords()
         ImportSparkClipboard.ImportClipboardData(self, context, **keywords)
         return {'FINISHED'}
@@ -117,7 +119,6 @@ class ExportSparkData(bpy.types.Operator):
         )
         
     def execute(self, context):
-        from . import ExportSparkClipboard
         keywords = self.as_keywords()
         ExportSparkClipboard.ExportClipboardData(self, context, **keywords)
         return {'FINISHED'}

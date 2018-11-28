@@ -11,6 +11,9 @@ from . import ClipUtils
 import bmesh
 from . import Triangulation
 import math
+from mathutils import Vector
+
+validPaths = []
 
 def INCHESPERMETER(): return 39.3700787
 
@@ -340,6 +343,155 @@ def LoadMaterial(texPaths, mat, textures):
     return AddMaterial(None)
 
 
+def FindMeshDataForStaticProp(relativeFilePath):
+    for mesh in bpy.data.meshes:
+        if 'SparkFilePath' in mesh and mesh['SparkFilePath'] == relativeFilePath:
+            return mesh
+    return None
+
+
+class BaseVert:
+    def __init__(self, pos):
+        self.pos = pos
+        self.loops = []
+    
+    def __eq__(self, other):
+        return type(self) == type(other) and self.pos.x == other.pos.x and self.pos.y == other.pos.y and self.pos.z == other.pos.z
+    
+    def __hash__(self):
+        return hash((self.pos.x, self.pos.y, self.pos.z))
+
+
+class LoopVert:
+    def __init__(self, baseVert, nrm, tan, bit, uv):
+        self.baseVert = baseVert
+        self.nrm = nrm
+        self.tan = tan
+        self.bit = bit
+        self.uv = uv
+    
+    def __eq__(self, other):
+        return type(self) == type(other) and self.baseVert == other.baseVert and self.nrm.x == other.nrm.x and self.nrm.y == other.nrm.y and self.nrm.z == other.nrm.z and self.tan.x == other.tan.x and self.tan.y == other.tan.y and self.tan.z == other.tan.z and self.bit.x == other.bit.x and self.bit.y == other.bit.y and self.bit.z == other.bit.z and self.uv.x == other.uv.x and self.uv.y == other.uv.y
+    
+    def __hash__(self):
+        return hash((self.baseVert, self.nrm.x, self.nrm.y, self.nrm.z, self.tan.x, self.tan.y, self.tan.z, self.bit.x, self.bit.y, self.bit.z, self.uv.x, self.uv.y))
+
+
+def CycleVector(vec3):
+    return Vector((vec3.z, vec3.x, vec3.y))
+
+
+def FlipVector(vec2):
+    return Vector((vec2.x, 1.0 - vec2.y))
+
+
+def CreateMeshForSparkModel(model):
+    
+    # DEBUG
+    print("CreateMeshForSparkModel")
+    
+    mesh = bpy.data.meshes.new("StaticPropMesh")
+    
+    baseVertSet = {}
+    loopVertSet = {}
+    baseVertList = []
+    loopVertList = []
+    inputIndexToLoopVertMap = []
+    
+    for inputVert in model.vertices:
+        baseVert = BaseVert(inputVert.pos)
+        if baseVert in baseVertSet:
+            baseVert = baseVertList[baseVertSet[baseVert]]
+        else:
+            baseVertSet[baseVert] = len(baseVertList)
+            baseVertList.append(baseVert)
+        
+        loopVert = LoopVert(baseVert, inputVert.nrm, inputVert.tan, inputVert.bit, inputVert.uv)
+        if loopVert in loopVertSet:
+            loopVert = loopVertList[loopVertSet[loopVert]]
+        else:
+            loopVertSet[loopVert] = len(loopVertList)
+            loopVertList.append(loopVert)
+        
+        inputIndexToLoopVertMap.append(loopVert)
+    
+    mesh.vertices.add(len(baseVertList))
+    for i, bv in enumerate(baseVertList):
+        mesh.vertices[i].co = Vector((bv.pos.z, bv.pos.x, bv.pos.y))
+    
+    mesh.loops.add(len(model.indices))
+    mesh.uv_textures.new()
+    uv_layer = mesh.uv_layers[0]
+    custom_normals = [None] * len(model.indices)
+    for i in range(len(model.indices) // 3):
+        for j in range(3):
+            mesh.loops[i*3+j].vertex_index = baseVertSet[inputIndexToLoopVertMap[model.indices[i*3+j]].baseVert]
+            uv_layer.data[i*3+j].uv = FlipVector(inputIndexToLoopVertMap[model.indices[i*3+j]].uv)
+            custom_normals[i*3+j] = CycleVector(inputIndexToLoopVertMap[model.indices[i*3+j]].nrm)
+    
+    mesh.polygons.add(len(model.indices) // 3)
+    for i in range(len(model.indices) // 3):
+        mesh.polygons[i].loop_start = i*3
+        mesh.polygons[i].loop_total = 3
+    
+    for faceSet in model.faceSets:
+        for j in range(faceSet.firstFaceIndex, faceSet.firstFaceIndex + faceSet.faceCount):
+            mesh.polygons[i].material_index = faceSet.materialIndex
+    
+    mesh.update(calc_edges=True)
+    mesh.normals_split_custom_set(custom_normals)
+
+
+def LoadMeshDataForStaticProp(relativeFilePath):
+    
+    # DEBUG
+    print("LoadMeshDataForStaticProp")
+    print("validPaths:", validPaths)
+    
+    for path in validPaths:
+        file = path + relativeFilePath
+        
+        # DEBUG
+        print("trying to loat model file '%s'..." % file)
+        
+        if DoesFileExist(file):
+            file_read = open(file, 'rb')
+            data = file_read.read()
+            file_read.close()
+            reader = SparkClasses.SparkReader(data)
+            model = SparkClasses.SparkModel(reader)
+            mesh = CreateMeshForSparkModel(model)
+            return mesh
+
+
+def GetMeshDataForStaticProp(relativeFilePath):
+    
+    # DEBUG
+    print("GetMeshDataForStaticProp")
+    
+    meshData = FindMeshDataForStaticProp(relativeFilePath)
+    if meshData != None:
+        return meshData
+    
+    return LoadMeshDataForStaticProp(relativeFilePath)
+
+
+def AddProp(prop, validPaths):
+    
+    # DEBUG
+    print("AddProp")
+    
+    objData = GetMeshDataForStaticProp(prop.modelFilePath)
+    if objData == None:
+        return
+    
+    obj = bpy.data.objects.new("StaticProp", objData)
+    bpy.context.scene.objects.link(obj)
+    
+    # add materials
+    # TODO bit of a scope issue here... materials are loaded with the mesh... which isn't known at the object level :/
+
+
 def ImportClipboardData(operator, context,
         correct_units = True,
         correct_axes = True,
@@ -351,7 +503,7 @@ def ImportClipboardData(operator, context,
         tex_dir_5 = "",
         ):
     """Imports the clipboard data, and creates all the necessary objects"""
-    validPaths = []
+    validPaths.clear()
     
     textures = []   ### The texture indices in this list should line up perfectly with the imported material indices.
                     ### Be sure to do None checks when using this list, as textures that cannot be located are still
@@ -379,38 +531,39 @@ def ImportClipboardData(operator, context,
         import_textures = False
         print("WARNING: None of the texture paths are valid.  Switching texture import off.")
     data = ClipUtils.GetClipboardAsString()
-    sparkData = SparkClasses.SparkMeshChunkClipboard(data)
+    sparkData = SparkClasses.SparkLevelData(data)
     
     ###DEBUG PRINTING###
+    '''
     if True:
         print("VERTICES")
-        for i,v in enumerate(sparkData.vertexChunk.vertices):
+        for i,v in enumerate(sparkData.geoData.vertexChunk.vertices):
             print("    ",i,":",(v.x*INCHESPERMETER(),v.y*INCHESPERMETER(),v.z*INCHESPERMETER()))
         print("EDGES")
-        for i,e in enumerate(sparkData.edgeChunk.edges):
-            print("    ",i,":",e.a,"-->",e.b,"(smooth)" if e.smooth else "(sharp)")
+        for i,e in enumerate(sparkData.geoData.edgeChunk.edges):
+            print("    ",i,":",e.idxA,"-->",e.idxB,"(smooth)" if e.smooth else "(sharp)")
         print("FACES")
-        for i,f in enumerate(sparkData.faceChunk.faces):
+        for i,f in enumerate(sparkData.geoData.faceChunk.faces):
             print("    ",i)
             print("        angle:",f.angle)
             print("        xOffs:",f.xOffset)
             print("        yOffs:",f.yOffset)
             print("        xScale:",f.xScale)
             print("        yScale:",f.yScale)
-            print("        mapping:",f.mapping)
-            print("        material:", f.material)
+            print("        mappingIdx:",f.mappingIdx)
+            print("        materialIdx:", f.materialIdx)
             print("        BORDER LOOP")
             for b in f.borderLoop.edgeLoopMembers:
-                print("            e",b.edge,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.edgeChunk.edges[b.edge].b if b.flipped else sparkData.edgeChunk.edges[b.edge].a, "-->", sparkData.edgeChunk.edges[b.edge].a if b.flipped else sparkData.edgeChunk.edges[b.edge].b,")")
+                print("            e",b.edgeIdx,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA, "-->", sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB,")")
             for j,l in enumerate(f.innerLoops):
                 print("        INNER LOOP",j)
                 for b in l.edgeLoopMembers:
-                    print("            e",b.edge,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.edgeChunk.edges[b.edge].b if b.flipped else sparkData.edgeChunk.edges[b.edge].a, "-->", sparkData.edgeChunk.edges[b.edge].a if b.flipped else sparkData.edgeChunk.edges[b.edge].b,")")
-    
+                    print("            e",b.edgeIdx,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA, "-->", sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB,")")
+    '''
     
     ### Import Materials ###
     if (import_textures):
-        for material in sparkData.materialChunk.materials:
+        for material in sparkData.geoData.materialChunk.materials:
             b = LoadMaterial(validPaths, material, textures)
             bMats.append(b)
             if b == None:
@@ -422,7 +575,7 @@ def ImportClipboardData(operator, context,
     CORRECT_UNIT_FACTOR = 1.0
     if correct_units:
         CORRECT_UNIT_FACTOR = INCHESPERMETER()
-    for vertex in sparkData.vertexChunk.vertices:
+    for vertex in sparkData.geoData.vertexChunk.vertices:
         if correct_axes:
             verts.append(bm.verts.new((vertex.z*CORRECT_UNIT_FACTOR,vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR)))
         else:
@@ -430,28 +583,27 @@ def ImportClipboardData(operator, context,
     
     ### Import Edges ###
     edges = []
-    for edge in sparkData.edgeChunk.edges:
+    for edge in sparkData.geoData.edgeChunk.edges:
         edges.append( edge )
     
     ### Import Faces ###
     polys = []
     tex_layer = bm.faces.layers.tex.verify()
-    for faceIndex, face in enumerate(sparkData.faceChunk.faces):
+    for faceIndex, face in enumerate(sparkData.geoData.faceChunk.faces):
         normalVector = None
         texSettings = None
-        if (face.mapping == 4294967295): #FF FF FF FF as an unsigned 32-bit integer
-            #No mapping group applied, therefore we just go ahead and use the face's
-            #mapping settings
-            texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.material)
+        if (face.mappingIdx == 0xFFFFFFFF):
+            #No mapping group applied, therefore we just go ahead and use the face's mapping settings
+            texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.materialIdx)
         else:
-            mappingIndex = sparkData.mappingChunk.getMappingByID(face.mapping)
+            mappingIndex = sparkData.geoData.mappingChunk.getMappingByID(face.mappingIdx)
             if (mappingIndex == -1):
                 #Mapping group doesn't exist, just go ahead and use the face normals
-                texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.material)
+                texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.materialIdx)
             else:
-                map = sparkData.mappingChunk.mappingGroups[mappingIndex]
+                map = sparkData.geoData.mappingChunk.mappingGroups[mappingIndex]
                 normalVector = [map.zNormal, map.xNormal, map.yNormal]
-                texSettings = (map.angle, map.xOffset, map.yOffset, map.xScale, map.yScale, face.material)
+                texSettings = (map.angle, map.xOffset, map.yOffset, map.xScale, map.yScale, face.materialIdx)
         
         f = []
         if (face.innerLoops == None or face.innerLoops == [] or face.innerLoops[0].edgeLoopMembers == []):
@@ -460,7 +612,7 @@ def ImportClipboardData(operator, context,
             
             for loopM in face.borderLoop.edgeLoopMembers:
                 bm.verts.ensure_lookup_table()
-                v.append(bm.verts[edges[loopM.edge].b] if loopM.flipped else bm.verts[edges[loopM.edge].a])
+                v.append(bm.verts[edges[loopM.edgeIdx].idxB] if loopM.flipped else bm.verts[edges[loopM.edgeIdx].idxA])
             
             #Do a quick check to ensure this face doesn't have double verts.
             faceValid = True
@@ -497,7 +649,7 @@ def ImportClipboardData(operator, context,
             bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
             bm.faces[bmf.index].material_index = texSettings[5]
         else:
-            p = Triangulation.polygon(face, sparkData)
+            p = Triangulation.polygon(face, sparkData.geoData)
             polys.append( p )
             norm = None
             for triangle in p.triangles:
@@ -537,3 +689,10 @@ def ImportClipboardData(operator, context,
         me.materials.append(bmat)
     scene.objects.link(obj)
     textures = []
+    
+    
+    # Import props now
+    for prop in sparkData.entityData.staticProps:
+        AddProp(prop, validPaths)
+    
+    
