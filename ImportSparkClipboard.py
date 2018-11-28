@@ -2,7 +2,7 @@
 # Feel free to modify at your leisure, just make sure you
 # give credit where it's due.
 # Cheers! -Beige
-# Last modified November 22, 2014
+# Last modified November 28, 2018
 
 import bpy
 import os
@@ -462,7 +462,7 @@ def LoadMeshDataForStaticProp(relativeFilePath):
             data = file_read.read()
             file_read.close()
             reader = SparkClasses.SparkReader(data)
-            model = SparkClasses.SparkModel(reader)
+            model = SparkClasses.SparkModel().readData(reader)
             mesh = CreateMeshForSparkModel(model)
             return mesh
 
@@ -542,7 +542,7 @@ def ImportClipboardData(operator, context,
         import_textures = False
         print("WARNING: None of the texture paths are valid.  Switching texture import off.")
     data = ClipUtils.GetClipboardAsString()
-    sparkData = SparkClasses.SparkLevelData(data)
+    sparkData = SparkClasses.SparkLevelData().readData(data)
     
     ###DEBUG PRINTING###
     '''

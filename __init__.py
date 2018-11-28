@@ -2,7 +2,7 @@
 # Feel free to modify at your leisure, just make sure you
 # give credit where it's due.
 # Cheers! -Beige
-# Last modified November 22, 2014
+# Last modified November 28, 2018
 
 bl_info = {
     "name": "Natural Selection 2 Spark Geometry IO Script",

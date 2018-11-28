@@ -2,7 +2,7 @@
 # Feel free to modify at your leisure, just make sure you
 # give credit where it's due.
 # Cheers! -Beige
-# Last modified November 27, 2018
+# Last modified November 28, 2018
 
 import struct
 from mathutils import Vector
@@ -113,66 +113,120 @@ class SparkWriter:
 
 
 class SparkGeoMaterialChunk:
-    def __init__(self, data):
+    def readData(self, data):
         self.materials = []
         
         reader = SparkReader(data)
         materialCount = reader.readUInt32()
         for i in range(materialCount):
             self.materials.append(reader.readString())
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(4)
+        
+        writer.writeUInt32(len(self.materials))
+        for m in self.materials:
+            writer.writeString(m)
+        
+        writer.endChunk()
 
 
 class SparkGeoVertex:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.x = reader.readFloat()
         self.y = reader.readFloat()
         self.z = reader.readFloat()
         reader.skip(1) # extra unused byte at the end of each vertex
+        return self
+    
+    def writeData(self, writer):
+        writer.writeFloat(self.x)
+        writer.writeFloat(self.y)
+        writer.writeFloat(self.z)
+        writer.writeUInt8(0)
 
 
 class SparkGeoVertexChunk:
-    def __init__(self, data):
+    def readData(self, data):
         self.vertices = []
         
         reader = SparkReader(data)
         vertexCount = reader.readUInt32()
         for i in range(vertexCount):
-            self.vertices.append(SparkGeoVertex(reader))
+            self.vertices.append(SparkGeoVertex().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(1)
+        
+        writer.writeUInt32(len(self.vertices))
+        for v in self.vertices:
+            v.writeData(writer)
+        
+        writer.endChunk()
 
 
 class SparkGeoEdge:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.idxA = reader.readUInt32()
         self.idxB = reader.readUInt32()
         self.smooth = True if reader.readUInt8() == 1 else False
+        return self
+    
+    def writeData(self, writer):
+        writer.writeUInt32(self.idxA)
+        writer.writeUInt32(self.idxB)
+        writer.writeUInt8(1 if self.smooth else 0)
 
 
 class SparkGeoEdgeChunk:
-    def __init__(self, data):
+    def readData(self, data):
         self.edges = []
         
         reader = SparkReader(data)
         edgeCount = reader.readUInt32()
         for i in range(edgeCount):
-            self.edges.append(SparkGeoEdge(reader))
+            self.edges.append(SparkGeoEdge().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(2)
+        
+        writer.writeUInt32(len(self.edges))
+        for e in self.edges:
+            e.writeData(writer)
+        
+        writer.endChunk()
 
 
 class SparkGeoEdgeLoopMember:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.flipped = True if reader.readUInt32() == 1 else False
         self.edgeIdx = reader.readUInt32()
+        return self
+    
+    def writeData(self, writer):
+        writer.writeUInt32(1 if self.flipped else 0)
+        writer.writeUInt32(self.edgeIdx)
 
 
 class SparkGeoEdgeLoop:
-    def __init__(self, reader):
+    def readData(self, reader):
         edgeCount = reader.readUInt32()
         self.edgeLoopMembers = []
         for i in range(edgeCount):
-            self.edgeLoopMembers.append(SparkGeoEdgeLoopMember(reader))
+            self.edgeLoopMembers.append(SparkGeoEdgeLoopMember().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.writeUInt32(len(self.edgeLoopMembers))
+        for elm in self.edgeLoopMembers:
+            elm.writeData(writer)
 
 
 class SparkGeoFace:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.angle = reader.readFloat()
         self.xOffset = reader.readFloat()
         self.yOffset = reader.readFloat()
@@ -181,24 +235,48 @@ class SparkGeoFace:
         self.mappingIdx = reader.readUInt32()
         self.materialIdx = reader.readUInt32()
         innerLoopCount = reader.readUInt32()
-        self.borderLoop = SparkGeoEdgeLoop(reader)
+        self.borderLoop = SparkGeoEdgeLoop().readData(reader)
         self.innerLoops = []
         for i in range(innerLoopCount):
-            self.innerLoops.append(SparkGeoEdgeLoop(reader))
+            self.innerLoops.append(SparkGeoEdgeLoop().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.writeFloat(self.angle)
+        writer.writeFloat(self.xOffset)
+        writer.writeFloat(self.yOffset)
+        writer.writeFloat(self.xScale)
+        writer.writeFloat(self.yScale)
+        writer.writeUInt32(0xFFFFFFFF)
+        writer.writeUInt32(self.materialIdx)
+        writer.writeUInt32(len(self.innerLoops))
+        self.borderLoop.writeData(writer)
+        for innerLoop in self.innerLoops:
+            innerLoop.writeData(writer)
 
 
 class SparkGeoFaceChunk:
-    def __init__(self, data):
+    def readData(self, data):
         self.faces = []
         
         reader = SparkReader(data)
         faceCount = reader.readUInt32()
         for i in range(faceCount):
-            self.faces.append(SparkGeoFace(reader))
+            self.faces.append(SparkGeoFace().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(3)
+        
+        writer.writeUInt32(len(self.faces))
+        for f in self.faces:
+            f.writeData(writer)
+        
+        writer.endChunk()
 
 
 class SparkGeoMappingGroup:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.id = reader.readUInt32()
         self.angle = reader.readFloat()
         self.xScale = reader.readFloat()
@@ -208,20 +286,42 @@ class SparkGeoMappingGroup:
         self.xNormal = reader.readFloat()
         self.yNormal = reader.readFloat()
         self.zNormal = reader.readFloat()
+        return self
+    
+    def writeData(self, writer):
+        writer.writeUInt32(self.id)
+        writer.writeFloat(self.angle)
+        writer.writeFloat(self.xScale)
+        writer.writeFloat(self.yScale)
+        writer.writeFloat(self.xOffset)
+        writer.writeFloat(self.yOffset)
+        writer.writeFloat(self.xNormal)
+        writer.writeFloat(self.yNormal)
+        writer.writeFloat(self.zNormal)
 
 
 class SparkGeoMappingGroupChunk:
-    def __init__(self, data):
+    def readData(self, data):
         self.mappingGroups = []
         
         reader = SparkReader(data)
         groupCount = reader.readUInt32()
         for i in range(groupCount):
-            self.mappingGroups.append(SparkGeoMappingGroup(reader))
+            self.mappingGroups.append(SparkGeoMappingGroup().readData(reader))
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(5)
+        
+        writer.writeUInt32(len(self.mappingGroups))
+        for g in self.mappingGroups:
+            g.writeData(writer)
+        
+        writer.endChunk()
 
 
 class SparkGeoData:
-    def __init__(self, data):
+    def readData(self, data):
         self.materialChunk = None
         self.vertexChunk = None
         self.edgeChunk = None
@@ -247,27 +347,56 @@ class SparkGeoData:
             if chunkIdx == 4:
                 if self.materialChunk != None:
                     raise SparkError("Multiple material chunks present in clipboard geo data!")
-                self.materialChunk = SparkGeoMaterialChunk(chunkData)
+                self.materialChunk = SparkGeoMaterialChunk().readData(chunkData)
             elif chunkIdx == 1:
                 if self.vertexChunk != None:
                     raise SparkError("Multiple vertex chunks present in clipboard geo data!")
-                self.vertexChunk = SparkGeoVertexChunk(chunkData)
+                self.vertexChunk = SparkGeoVertexChunk().readData(chunkData)
             elif chunkIdx == 2:
                 if self.edgeChunk != None:
                     raise SparkError("Multiple edge chunks present in clipboard geo data!")
-                self.edgeChunk = SparkGeoEdgeChunk(chunkData)
+                self.edgeChunk = SparkGeoEdgeChunk().readData(chunkData)
             elif chunkIdx == 3:
                 if self.faceChunk != None:
                     raise SparkError("Multiple face chunks present in clipboard geo data!")
-                self.faceChunk = SparkGeoFaceChunk(chunkData)
+                self.faceChunk = SparkGeoFaceChunk().readData(chunkData)
             elif chunkIdx == 7:
                 if self.mappingChunk != None:
                     raise SparkError("Multiple mapping chunks present in clipboard geo data!")
-                self.mappingChunk = SparkGeoMappingGroupChunk(chunkData)
+                self.mappingChunk = SparkGeoMappingGroupChunk().readData(chunkData)
+        return self
+    
+    def writeData(self, writer):
+        writer.beginChunk(1)
+        writer.writeUInt16(2) # mesh selection manager index
+        
+        self.materialChunk.writeData(writer)
+        self.vertexChunk.writeData(writer)
+        self.edgeChunk.writeData(writer)
+        self.faceChunk.writeData(writer)
+        
+        # Fill in blank data for face layers
+        writer.beginChunk(6)
+        writer.writeUInt32(len(self.faceChunk.faces))
+        writer.writeUInt32(2)
+        for i in range(len(self.faceChunk.faces)):
+            writer.writeUInt32(0)
+        writer.endChunk()
+        
+        self.mappingChunk.writeData(writer)
+        
+        # Fill in blank data for geometry groups
+        writer.beginChunk(8)
+        writer.writeUInt32(0) # 0 vert groups
+        writer.writeUInt32(0) # 0 edge groups
+        writer.writeUInt32(0) # 0 face groups
+        writer.endChunk()
+        
+        writer.endChunk()
 
 
 class SparkVertex:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.pos = Vector(reader.readVec3())
         self.nrm = Vector(reader.readVec3())
         self.tan = Vector(reader.readVec3())
@@ -275,19 +404,21 @@ class SparkVertex:
         self.uv = Vector(reader.readVec2())
         reader.readUInt32() # skip color
         reader.skip(32) # skip bone weights and bone indices.
+        return self
 
 
 class SparkFaceSet:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.materialIndex = reader.readUInt32()
         self.firstFaceIndex = reader.readUInt32()
         self.faceCount = reader.readUInt32()
         boneCount = reader.readUInt32() # skip bone count
         reader.skip(boneCount * 4)
+        return self
 
 
 class SparkModel:
-    def __init__(self, reader):
+    def readData(self, reader):
         
         self.vertices = []
         self.indices = []
@@ -311,7 +442,7 @@ class SparkModel:
         vertexCount = vertexChunkReader.readUInt32()
         self.vertices = [None] * vertexCount
         for i in range(vertexCount):
-            self.vertices[i] = SparkVertex(vertexChunkReader)
+            self.vertices[i] = SparkVertex().readData(vertexChunkReader)
         
         # Read indices
         indicesChunkReader = SparkReader(chunks[2])
@@ -325,7 +456,7 @@ class SparkModel:
         faceSetCount = faceSetChunkReader.readUInt32()
         self.faceSets = [None] * faceSetCount
         for i in range(faceSetCount):
-            self.faceSets[i] = SparkFaceSet(faceSetChunkReader)
+            self.faceSets[i] = SparkFaceSet().readData(faceSetChunkReader)
         
         # Read materials
         materialsChunkReader = SparkReader(chunks[4])
@@ -338,10 +469,12 @@ class SparkModel:
         boundingBoxChunkReader = SparkReader(chunks[17])
         self.boundsOrigin = boundingBoxChunkReader.readVec3()
         self.boundsExtents = boundingBoxChunkReader.readVec3()
+        
+        return self
 
 
 class SparkEntity:
-    def __init__(self, reader):
+    def readData(self, reader):
         self.origin = Vector((0,0,0))
         self.angles = Euler(Vector((0,0,0)), 'XYZ')
         self.scale = Vector((1, 1, 1))
@@ -407,10 +540,11 @@ class SparkEntity:
                     raise SparkError("Unexpected component count when reading property 'model'.")
                 propertyReader.readUInt32() # skip animation value
                 self.modelFilePath = propertyReader.readWString()
+        return self
 
 
 class SparkEntityData:
-    def __init__(self, data):
+    def readData(self, data):
         self.staticProps = []
         
         reader = SparkReader(data)
@@ -429,15 +563,78 @@ class SparkEntityData:
         
         while not reader.doneReading():
             chunkIdx, chunkLength, chunkData = reader.readChunk()
-            newEntity = SparkEntity(SparkReader(chunkData))
+            newEntity = SparkEntity().readData(SparkReader(chunkData))
             if newEntity.className == "prop_static":
                 self.staticProps.append(newEntity)
+        return self
 
 
 class SparkLevelData:
-    def __init__(self, data):
-        self.geoData = SparkGeoData(data)
-        self.entityData = SparkEntityData(data)
+    def readData(self, data):
+        self.geoData = SparkGeoData().readData(data)
+        self.entityData = SparkEntityData().readData(data)
+        return self
+    
+    def writeData(self, writer):
+        self.geoData.writeData(writer)
+
+
+def appendList(l1, l2):
+    for item in l2:
+        l1.append(item)
+    return l1
+
+
+def materialInList(material, lst):
+    if (lst.count(material) > 0):
+        return lst.index(material)
+    else:
+        return -1
+
+
+def mergeSparkData(mc1, mc2): ### Merge two sets of mesh chunks, the first input is the output.
+    """Merges two spark data objects, effectively turning them into one mesh"""
+    #First, let's intelligently merge the materials lists.  If there's any overlap, we'll need to adjust mc2's
+    #material chunk to reference mc1's copy of the material.
+    matRefs = []
+    for i, mat in enumerate(mc2.materialChunk.materials):
+        x = materialInList(mat, mc1.materialChunk.materials)
+        if (x == -1): #material doesn't exist in mc1
+            matRefs.append(len(mc1.materialChunk.materials)) #length of a list is equal to the index of the next item appended to it
+            mc1.materialChunk.materials.append(mat) #add that material to the end of mc1's material list
+        else: #material DOES exist in mc1
+            matRefs.append(x) #index of where the identical material was found in mc1
+     #We now have a list, "matRefs" that is effectively a map for mc2's material indices.        
+   
+           
+     #Now, we append the second list of vertices to the first list of vertices.  Nothing special to do here,
+     #but we need to keep in mind the starting number of vertices, so we can be sure to add this number to the
+    #vertex id when referenced by mc2's edges.
+    offset = len(mc1.vertexChunk.vertices)
+    mc1.vertexChunk.vertices = appendList(mc1.vertexChunk.vertices, mc2.vertexChunk.vertices)
+   
+    for edge in mc2.edgeChunk.edges:
+        edge.a +=offset
+        edge.b +=offset
+   
+    #Now we merge the edge lists after offsetting the vertex indices within each edge of chunk #2.  We'll store
+    #the offset for the faces chunk in the same manner as before.
+    offset = len(mc1.edgeChunk.edges)
+    mc1.edgeChunk.edges = appendList(mc1.edgeChunk.edges, mc2.edgeChunk.edges)
+    
+    for face in mc2.faceChunk.faces:
+        face.material = matRefs[face.material]   #Quickly take care of some unfinished material business whilst
+                                                 #in the neighborhood... so to speak... ;)
+        for blmem in face.borderLoop.edgeLoopMembers:
+            blmem.edge += offset
+    mc1.faceChunk.faces = appendList(mc1.faceChunk.faces,mc2.faceChunk.faces)
+    #I really don't care about mapping groups at the moment... maybe I'll add support in the future, but for now,
+    #mc2's will just be lost.
+    
+    return mc1
+
+
+
 
 
 # ==========================================

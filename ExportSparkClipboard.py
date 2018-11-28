@@ -2,7 +2,9 @@
 # Feel free to modify at your leisure, just make sure you
 # give credit where it's due.
 # Cheers! -Beige
-# Last modified November 22, 2014
+# Last modified November 28, 2018
+
+# Ugh... this is an awful hot mess that needs rewriting... :(
 
 import bpy
 from . import SparkClasses
@@ -269,18 +271,20 @@ def ExportClipboardData(operator, context,
         if (correct_units):
             me.transform(scaleMat)
         
-        mDat = SparkClasses.SparkMeshChunkClipboard()
-        mDat.materialChunk = SparkClasses.SparkMaterialChunk()
-        mDat.vertexChunk = SparkClasses.SparkVertexChunk()
-        mDat.edgeChunk = SparkClasses.SparkEdgeChunk()
-        mDat.faceChunk = SparkClasses.SparkFaceChunk()
-        mDat.mappingChunk = SparkClasses.SparkMappingGroupChunk()
+        levelData = SparkClasses.SparkLevelData()
+        mDat = SparkClasses.SparkGeoData()
+        levelData.geoData = mDat
+        mDat.materialChunk = SparkClasses.SparkGeoMaterialChunk()
+        mDat.vertexChunk = SparkClasses.SparkGeoVertexChunk()
+        mDat.edgeChunk = SparkClasses.SparkGeoEdgeChunk()
+        mDat.faceChunk = SparkClasses.SparkGeoFaceChunk()
+        mDat.mappingChunk = SparkClasses.SparkGeoMappingGroupChunk()
         
         vC = mDat.vertexChunk
         vC.vertices = []
         
         for vert in me.vertices:
-            sV = SparkClasses.SparkVertex()
+            sV = SparkClasses.SparkGeoVertex()
             if correct_axes:
                 sV.x = vert.co[1]
                 sV.y = vert.co[2]
@@ -295,7 +299,7 @@ def ExportClipboardData(operator, context,
         eC.edges = []
         
         for edge in me.edges:
-            sE = SparkClasses.SparkEdge()
+            sE = SparkClasses.SparkGeoEdge()
             sE.a = edge.vertices[0]
             sE.b = edge.vertices[1]
             sE.smooth = edge.use_edge_sharp
@@ -305,10 +309,10 @@ def ExportClipboardData(operator, context,
         fC.faces = []
         
         for face in me.polygons:
-            sF = SparkClasses.SparkFace()
+            sF = SparkClasses.SparkGeoFace()
             if export_textures:
                 tex = CalculateSparkTex(face, me, CORRECT_UNIT_FACTOR)
-                sF.mapping = 4294967295 # max 32 bit unsigned integer, no mapping group
+                sF.mapping = 0xFFFFFFFF
                 if tex == None: #error during calculations, using defaults instead
                     sF.angle = 0.0
                     sF.xOffset = 0.0
@@ -333,14 +337,14 @@ def ExportClipboardData(operator, context,
                 sF.yOffset = 0.0
                 sF.xScale = 1.0
                 sF.yScale = 1.0
-                sF.mapping = 4294967295 # max 32 bit unsigned integer, no mapping group
+                sF.mapping = 0xFFFFFFFF
                 sF.material = AddMaterial("ns2/materials/dev/dev_1024x1024.dds",materials)
                 #print(sF.material)
             sF.innerLoops = []
-            sF.borderLoop = SparkClasses.SparkEdgeLoop()
+            sF.borderLoop = SparkClasses.SparkGeoEdgeLoop()
             sF.borderLoop.edgeLoopMembers = []
             for loop in face.loop_indices:
-                selm = SparkClasses.SparkEdgeLoopMember()
+                selm = SparkClasses.SparkGeoEdgeLoopMember()
                 selm.edge = me.loops[loop].edge_index
                 selm.flipped = True if me.edges[me.loops[loop].edge_index].vertices[1] == me.loops[loop].vertex_index else False
                 sF.borderLoop.edgeLoopMembers.append(selm)
@@ -365,6 +369,7 @@ def ExportClipboardData(operator, context,
         print("No mesh data to export to clipboard.  Aborting...")
         raise SparkClasses.SparkError("No mesh data to export, aborting...")
     else:
+        writer = SparkClasses.SparkWriter()
         bData = mDatTotal.convertToBinString()
         ClipUtils.SetClipboardFromString(bData)
     materials = []
