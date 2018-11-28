@@ -251,8 +251,12 @@ def CalculateVertUVCoord(vertex, normalVector, texSettings, CORRECT_UNIT_FACTOR,
     yScale = texSettings[4]
     material = texSettings[5]
     texDim = (512, 512) #default value, if no texture is found
-    if (textures[material] != None):
-        texDim = textures[material].size
+    try:
+        if (textures[material] != None):
+            texDim = textures[material].size
+    except IndexError:
+        pass
+    
     norm = [normalVector[0], normalVector[1], normalVector[2]]
     
     #Correct the scaling values back to being in terms of image size, not meters.  Spark stores the scale
@@ -619,7 +623,10 @@ def ImportClipboardData(operator, context,
                         bm.faces.remove(bmf)
                         continue
                 MapUVsFromSparkTex(bm, bmf.index, normalVector, texSettings, CORRECT_UNIT_FACTOR, textures)
-                bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
+                try:
+                    bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
+                except IndexError:
+                    pass
                 bm.faces[bmf.index].material_index = texSettings[5]
             else:
                 p = Triangulation.polygon(face, sparkData.geoData)
@@ -637,7 +644,10 @@ def ImportClipboardData(operator, context,
                         continue
                     f.append(bmf)
                     MapUVsFromSparkTex(bm, bmf.index, normalVector, texSettings, CORRECT_UNIT_FACTOR, textures)
-                    bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
+                    try:
+                        bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
+                    except IndexError:
+                        pass
                     bm.faces[bmf.index].material_index = texSettings[5]
         #Now we need to go through and ensure that edges that were marked as smooth are now set as "sharp" in Blender.
         #Yea it's a bit odd, but that's the only analog I could find that worked suitably well.  Unfortunately, there's
