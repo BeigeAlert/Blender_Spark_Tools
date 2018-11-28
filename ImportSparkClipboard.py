@@ -388,9 +388,6 @@ def FlipVector(vec2):
 
 def CreateMeshForSparkModel(model):
     
-    # DEBUG
-    print("CreateMeshForSparkModel")
-    
     mesh = bpy.data.meshes.new("StaticPropMesh")
     
     baseVertSet = {}
@@ -441,21 +438,15 @@ def CreateMeshForSparkModel(model):
     
     mesh.update(calc_edges=True)
     mesh.normals_split_custom_set(custom_normals)
+    mesh.use_auto_smooth = True
     
     return mesh
 
 
 def LoadMeshDataForStaticProp(relativeFilePath):
     
-    # DEBUG
-    print("LoadMeshDataForStaticProp")
-    print("validPaths:", validPaths)
-    
     for path in validPaths:
         file = path + relativeFilePath
-        
-        # DEBUG
-        print("trying to loat model file '%s'..." % file)
         
         if DoesFileExist(file):
             file_read = open(file, 'rb')
@@ -464,13 +455,11 @@ def LoadMeshDataForStaticProp(relativeFilePath):
             reader = SparkClasses.SparkReader(data)
             model = SparkClasses.SparkModel().readData(reader)
             mesh = CreateMeshForSparkModel(model)
+            mesh['SparkFilePath'] = relativeFilePath
             return mesh
 
 
 def GetMeshDataForStaticProp(relativeFilePath):
-    
-    # DEBUG
-    print("GetMeshDataForStaticProp")
     
     meshData = FindMeshDataForStaticProp(relativeFilePath)
     if meshData != None:
@@ -480,9 +469,6 @@ def GetMeshDataForStaticProp(relativeFilePath):
 
 
 def AddProp(prop, correct_units):
-    
-    # DEBUG
-    print("AddProp")
     
     objData = GetMeshDataForStaticProp(prop.modelFilePath)
     if objData == None:
@@ -544,166 +530,145 @@ def ImportClipboardData(operator, context,
     data = ClipUtils.GetClipboardAsString()
     sparkData = SparkClasses.SparkLevelData().readData(data)
     
-    ###DEBUG PRINTING###
-    '''
-    if True:
-        print("VERTICES")
-        for i,v in enumerate(sparkData.geoData.vertexChunk.vertices):
-            print("    ",i,":",(v.x*INCHESPERMETER(),v.y*INCHESPERMETER(),v.z*INCHESPERMETER()))
-        print("EDGES")
-        for i,e in enumerate(sparkData.geoData.edgeChunk.edges):
-            print("    ",i,":",e.idxA,"-->",e.idxB,"(smooth)" if e.smooth else "(sharp)")
-        print("FACES")
-        for i,f in enumerate(sparkData.geoData.faceChunk.faces):
-            print("    ",i)
-            print("        angle:",f.angle)
-            print("        xOffs:",f.xOffset)
-            print("        yOffs:",f.yOffset)
-            print("        xScale:",f.xScale)
-            print("        yScale:",f.yScale)
-            print("        mappingIdx:",f.mappingIdx)
-            print("        materialIdx:", f.materialIdx)
-            print("        BORDER LOOP")
-            for b in f.borderLoop.edgeLoopMembers:
-                print("            e",b.edgeIdx,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA, "-->", sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB,")")
-            for j,l in enumerate(f.innerLoops):
-                print("        INNER LOOP",j)
-                for b in l.edgeLoopMembers:
-                    print("            e",b.edgeIdx,"(flipped)" if b.flipped else "(no flip)","( ",sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA, "-->", sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxA if b.flipped else sparkData.geoData.edgeChunk.edges[b.edgeIdx].idxB,")")
-    '''
-    
-    ### Import Materials ###
-    if (import_textures):
-        for material in sparkData.geoData.materialChunk.materials:
-            b = LoadMaterial(validPaths, material, textures)
-            bMats.append(b)
-            if b == None:
-                print("WARNING: Unable to locate texture file for \"", material, "\".  UVs may be distorted!")
-    
-    ### Import Vertices ###
-    bm = bmesh.new()
-    verts = []
-    CORRECT_UNIT_FACTOR = 1.0
-    if correct_units:
-        CORRECT_UNIT_FACTOR = INCHESPERMETER()
-    for vertex in sparkData.geoData.vertexChunk.vertices:
-        if correct_axes:
-            verts.append(bm.verts.new((vertex.z*CORRECT_UNIT_FACTOR,vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR)))
-        else:
-            verts.append(bm.verts.new((vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR,vertex.z*CORRECT_UNIT_FACTOR)))
-    
-    ### Import Edges ###
-    edges = []
-    for edge in sparkData.geoData.edgeChunk.edges:
-        edges.append( edge )
-    
-    ### Import Faces ###
-    polys = []
-    tex_layer = bm.faces.layers.tex.verify()
-    for faceIndex, face in enumerate(sparkData.geoData.faceChunk.faces):
-        normalVector = None
-        texSettings = None
-        if (face.mappingIdx == 0xFFFFFFFF):
-            #No mapping group applied, therefore we just go ahead and use the face's mapping settings
-            texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.materialIdx)
-        else:
-            mappingIndex = sparkData.geoData.mappingChunk.getMappingByID(face.mappingIdx)
-            if (mappingIndex == -1):
-                #Mapping group doesn't exist, just go ahead and use the face normals
+    if sparkData.geoData:
+        
+        ### Import Materials ###
+        if (import_textures):
+            for material in sparkData.geoData.materialChunk.materials:
+                b = LoadMaterial(validPaths, material, textures)
+                bMats.append(b)
+                if b == None:
+                    print("WARNING: Unable to locate texture file for \"", material, "\".  UVs may be distorted!")
+        
+        ### Import Vertices ###
+        bm = bmesh.new()
+        verts = []
+        CORRECT_UNIT_FACTOR = 1.0
+        if correct_units:
+            CORRECT_UNIT_FACTOR = INCHESPERMETER()
+        for vertex in sparkData.geoData.vertexChunk.vertices:
+            if correct_axes:
+                verts.append(bm.verts.new((vertex.z*CORRECT_UNIT_FACTOR,vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR)))
+            else:
+                verts.append(bm.verts.new((vertex.x*CORRECT_UNIT_FACTOR,vertex.y*CORRECT_UNIT_FACTOR,vertex.z*CORRECT_UNIT_FACTOR)))
+        
+        ### Import Edges ###
+        edges = []
+        for edge in sparkData.geoData.edgeChunk.edges:
+            edges.append( edge )
+        
+        ### Import Faces ###
+        polys = []
+        tex_layer = bm.faces.layers.tex.verify()
+        for faceIndex, face in enumerate(sparkData.geoData.faceChunk.faces):
+            normalVector = None
+            texSettings = None
+            if (face.mappingIdx == 0xFFFFFFFF):
+                #No mapping group applied, therefore we just go ahead and use the face's mapping settings
                 texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.materialIdx)
             else:
-                map = sparkData.geoData.mappingChunk.mappingGroups[mappingIndex]
-                normalVector = [map.zNormal, map.xNormal, map.yNormal]
-                texSettings = (map.angle, map.xOffset, map.yOffset, map.xScale, map.yScale, face.materialIdx)
-        
-        f = []
-        if (face.innerLoops == None or face.innerLoops == [] or face.innerLoops[0].edgeLoopMembers == []):
-            # It's a polygon with no holes, hot damn!
-            v = [] #verts just for this face
+                mappingIndex = sparkData.geoData.mappingChunk.getMappingById(face.mappingIdx)
+                if (mappingIndex == -1):
+                    #Mapping group doesn't exist, just go ahead and use the face normals
+                    texSettings = (face.angle, face.xOffset, face.yOffset, face.xScale, face.yScale, face.materialIdx)
+                else:
+                    map = sparkData.geoData.mappingChunk.mappingGroups[mappingIndex]
+                    normalVector = [map.zNormal, map.xNormal, map.yNormal]
+                    texSettings = (map.angle, map.xOffset, map.yOffset, map.xScale, map.yScale, face.materialIdx)
             
-            for loopM in face.borderLoop.edgeLoopMembers:
-                bm.verts.ensure_lookup_table()
-                v.append(bm.verts[edges[loopM.edgeIdx].idxB] if loopM.flipped else bm.verts[edges[loopM.edgeIdx].idxA])
-            
-            #Do a quick check to ensure this face doesn't have double verts.
-            faceValid = True
-            for vertIndex in range(0,len(v)):
-                if v.count(v[vertIndex]) != 1:
-                    faceValid = False
-                    break
-            if not faceValid:
-                print("WARNING: Skipping face", faceIndex, "as it contained duplicate vertices")
-                continue #skips this face and moves on to the next face.
-            try:
-                bmf = bm.faces.new(v)
-            except ValueError:
-                print("WARNING: Error creating face", faceIndex, ", skipping...")
-                continue
-            f.append(bmf)
-            if normalVector == None:
-                #Calculate the normal from the first 3 vertices in the list.  BUT, in the unlikely, but still very
-                #possible event that the 3 vertices selected are inline (ie: a perfect 180 degree angle is formed,
-                #and therefore the normal cannot be derived from those 3 points), we move down the list one vertex
-                #and try again.  Eventually, we'll reach a vertex triplet that will work.  If we don't, just move
-                #on to the next face.
-                foundNonCollinear = False
-                for i in range(0,len(v)):
-                    normalVector = CalculateNormal( v[i].co , v[(i+len(v)-1)%len(v)].co , v[(i+1)%len(v)].co )
-                    if not normalVector == None:
-                        foundNonCollinear = True
+            f = []
+            if (face.innerLoops == None or face.innerLoops == [] or face.innerLoops[0].edgeLoopMembers == []):
+                # It's a polygon with no holes, hot damn!
+                v = [] #verts just for this face
+                
+                for loopM in face.borderLoop.edgeLoopMembers:
+                    bm.verts.ensure_lookup_table()
+                    v.append(bm.verts[edges[loopM.edgeIdx].idxB] if loopM.flipped else bm.verts[edges[loopM.edgeIdx].idxA])
+                
+                #Do a quick check to ensure this face doesn't have double verts.
+                faceValid = True
+                for vertIndex in range(0,len(v)):
+                    if v.count(v[vertIndex]) != 1:
+                        faceValid = False
                         break
-                if not foundNonCollinear: #this only happens if the face is made of colinear vertices; an invalid face.
-                    #Valid face cannot be formed, delete the face that was just added.
-                    bm.faces.remove(bmf)
+                if not faceValid:
+                    print("WARNING: Skipping face", faceIndex, "as it contained duplicate vertices")
+                    continue #skips this face and moves on to the next face.
+                try:
+                    bmf = bm.faces.new(v)
+                except ValueError:
+                    print("WARNING: Error creating face", faceIndex, ", skipping...")
                     continue
-            MapUVsFromSparkTex(bm, bmf.index, normalVector, texSettings, CORRECT_UNIT_FACTOR, textures)
-            bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
-            bm.faces[bmf.index].material_index = texSettings[5]
-        else:
-            p = Triangulation.polygon(face, sparkData.geoData)
-            polys.append( p )
-            norm = None
-            for triangle in p.triangles:
-                v1 = verts[triangle.v1.realId]
-                v2 = verts[triangle.v2.realId]
-                v3 = verts[triangle.v3.realId]
-                if normalVector == None:
-                    normalVector = CalculateNormal( v1.co , v2.co , v3.co )
-                bmf = bm.faces.new((v1,v2,v3))
+                except TypeError:
+                    continue
                 f.append(bmf)
+                if normalVector == None:
+                    #Calculate the normal from the first 3 vertices in the list.  BUT, in the unlikely, but still very
+                    #possible event that the 3 vertices selected are inline (ie: a perfect 180 degree angle is formed,
+                    #and therefore the normal cannot be derived from those 3 points), we move down the list one vertex
+                    #and try again.  Eventually, we'll reach a vertex triplet that will work.  If we don't, just move
+                    #on to the next face.
+                    foundNonCollinear = False
+                    for i in range(0,len(v)):
+                        normalVector = CalculateNormal( v[i].co , v[(i+len(v)-1)%len(v)].co , v[(i+1)%len(v)].co )
+                        if not normalVector == None:
+                            foundNonCollinear = True
+                            break
+                    if not foundNonCollinear: #this only happens if the face is made of colinear vertices; an invalid face.
+                        #Valid face cannot be formed, delete the face that was just added.
+                        bm.faces.remove(bmf)
+                        continue
                 MapUVsFromSparkTex(bm, bmf.index, normalVector, texSettings, CORRECT_UNIT_FACTOR, textures)
                 bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
                 bm.faces[bmf.index].material_index = texSettings[5]
-    #Now we need to go through and ensure that edges that were marked as smooth are now set as "sharp" in Blender.
-    #Yea it's a bit odd, but that's the only analog I could find that worked suitably well.  Unfortunately, there's
-    #no guarantee that the edges indices will line up from one mesh format to the other as new edges are created
-    #automatically by bmesh when the polygons are created.  Therefore we must loop through every spark edge and when
-    #we find a 'smooth' edge, we'll need to search through every bmesh edge for the match, and then set that to sharp.
-    bm.verts.index_update()
-    for sEdge in edges:
-        if (sEdge.smooth):
-            for bEdge in bm.edges:
-                if (bEdge.verts[0].index == sEdge.a) and (bEdge.verts[1].index == sEdge.b):
-                    bEdge.smooth = False
-                elif (bEdge.verts[0].index == sEdge.b) and (bEdge.verts[1].index == sEdge.a):
-                    bEdge.smooth = False
-    
-    #That should be it!  Just need to convert it back to a mesh from the bmesh module.
-    
-    mesh = bpy.data.meshes.new("ImportedSparkMesh")
-    bm.to_mesh(mesh)
-    bm.free()
-    scene = bpy.context.scene
-    obj = bpy.data.objects.new("ImportedSparkMeshObject", mesh)
-    me = obj.data
-    for bmat in bMats:
-        me.materials.append(bmat)
-    scene.objects.link(obj)
-    textures = []
-    
+            else:
+                p = Triangulation.polygon(face, sparkData.geoData)
+                polys.append( p )
+                norm = None
+                for triangle in p.triangles:
+                    v1 = verts[triangle.v1.realId]
+                    v2 = verts[triangle.v2.realId]
+                    v3 = verts[triangle.v3.realId]
+                    if normalVector == None:
+                        normalVector = CalculateNormal( v1.co , v2.co , v3.co )
+                    try:
+                        bmf = bm.faces.new((v1,v2,v3))
+                    except ValueError:
+                        continue
+                    f.append(bmf)
+                    MapUVsFromSparkTex(bm, bmf.index, normalVector, texSettings, CORRECT_UNIT_FACTOR, textures)
+                    bm.faces[bmf.index][tex_layer].image=textures[texSettings[5]]
+                    bm.faces[bmf.index].material_index = texSettings[5]
+        #Now we need to go through and ensure that edges that were marked as smooth are now set as "sharp" in Blender.
+        #Yea it's a bit odd, but that's the only analog I could find that worked suitably well.  Unfortunately, there's
+        #no guarantee that the edges indices will line up from one mesh format to the other as new edges are created
+        #automatically by bmesh when the polygons are created.  Therefore we must loop through every spark edge and when
+        #we find a 'smooth' edge, we'll need to search through every bmesh edge for the match, and then set that to sharp.
+        bm.verts.index_update()
+        for sEdge in edges:
+            if (sEdge.smooth):
+                for bEdge in bm.edges:
+                    if (bEdge.verts[0].index == sEdge.a) and (bEdge.verts[1].index == sEdge.b):
+                        bEdge.smooth = False
+                    elif (bEdge.verts[0].index == sEdge.b) and (bEdge.verts[1].index == sEdge.a):
+                        bEdge.smooth = False
+        
+        #That should be it!  Just need to convert it back to a mesh from the bmesh module.
+        
+        mesh = bpy.data.meshes.new("ImportedSparkMesh")
+        bm.to_mesh(mesh)
+        bm.free()
+        scene = bpy.context.scene
+        obj = bpy.data.objects.new("ImportedSparkMeshObject", mesh)
+        me = obj.data
+        for bmat in bMats:
+            me.materials.append(bmat)
+        scene.objects.link(obj)
+        textures = []
     
     # Import props now
-    for prop in sparkData.entityData.staticProps:
-        AddProp(prop, correct_units)
+    if sparkData.entityData:
+        for prop in sparkData.entityData.staticProps:
+            AddProp(prop, correct_units)
     
     

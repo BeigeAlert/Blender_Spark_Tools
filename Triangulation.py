@@ -2,7 +2,7 @@
 # Feel free to modify at your leisure, just make sure you
 # give credit where it's due.
 # Cheers! -Beige
-# Last modified November 22, 2014
+# Last modified November 28, 2018
 # Special thanks to Max McGuire for providing C++ source!
 # Never would have figured this out without that help. :)
 
@@ -255,9 +255,9 @@ class polygon:
             vertIndex1 = ((i-1)+length)%length
             vertIndex3 = (i+1)%length
             
-            v1 = vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex1].edge].b] if sF.borderLoop.edgeLoopMembers[vertIndex1].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex1].edge].a]
-            v2 = vertices[edges[sF.borderLoop.edgeLoopMembers[i].edge].b] if sF.borderLoop.edgeLoopMembers[i].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[i].edge].a]
-            v3 = vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex3].edge].b] if sF.borderLoop.edgeLoopMembers[vertIndex3].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex3].edge].a]
+            v1 = vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex1].edgeIdx].idxB] if sF.borderLoop.edgeLoopMembers[vertIndex1].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex1].edgeIdx].idxA]
+            v2 = vertices[edges[sF.borderLoop.edgeLoopMembers[i].edgeIdx].idxB] if sF.borderLoop.edgeLoopMembers[i].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[i].edgeIdx].idxA]
+            v3 = vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex3].edgeIdx].idxB] if sF.borderLoop.edgeLoopMembers[vertIndex3].flipped else vertices[edges[sF.borderLoop.edgeLoopMembers[vertIndex3].edgeIdx].idxA]
             
             vec1 = ( v1.x-v2.x , v1.y-v2.y , v1.z-v2.z )
             vec2 = ( v3.x-v2.x , v3.y-v2.y , v3.z-v2.z )
@@ -280,17 +280,17 @@ class polygon:
             print("X is least significant")'''
             for mem in sF.borderLoop.edgeLoopMembers:
                 if not mem.flipped:
-                    self.verts.append( vert2D(vertices[edges[mem.edge].a].z , vertices[edges[mem.edge].a].y, edges[mem.edge].a ))
+                    self.verts.append( vert2D(vertices[edges[mem.edgeIdx].idxA].z , vertices[edges[mem.edgeIdx].idxA].y, edges[mem.edgeIdx].idxA ))
                 else:
-                    self.verts.append( vert2D(vertices[edges[mem.edge].b].z , vertices[edges[mem.edge].b].y, edges[mem.edge].b ))
+                    self.verts.append( vert2D(vertices[edges[mem.edgeIdx].idxB].z , vertices[edges[mem.edgeIdx].idxB].y, edges[mem.edgeIdx].idxB ))
             
             for il in sF.innerLoops:
                 holeVerts = []
                 for mem in il.edgeLoopMembers:
                     if not mem.flipped:
-                        holeVerts.append( vert2D(vertices[edges[mem.edge].a].z , vertices[edges[mem.edge].a].y, edges[mem.edge].a ))
+                        holeVerts.append( vert2D(vertices[edges[mem.edgeIdx].idxA].z , vertices[edges[mem.edgeIdx].idxA].y, edges[mem.edgeIdx].idxA ))
                     else:
-                        holeVerts.append( vert2D(vertices[edges[mem.edge].b].z , vertices[edges[mem.edge].b].y, edges[mem.edge].b ))
+                        holeVerts.append( vert2D(vertices[edges[mem.edgeIdx].idxB].z , vertices[edges[mem.edgeIdx].idxB].y, edges[mem.edgeIdx].idxB ))
                 self.holes.append(holeVerts)
             
         elif (nVec[1] > nVec[0]) and (nVec[1] >= nVec[2]):
@@ -299,17 +299,17 @@ class polygon:
             print("Y is least significant")'''
             for mem in sF.borderLoop.edgeLoopMembers:
                 if not mem.flipped:
-                    self.verts.append( vert2D( vertices[edges[mem.edge].a].x , vertices[edges[mem.edge].a].z, edges[mem.edge].a ))
+                    self.verts.append( vert2D( vertices[edges[mem.edgeIdx].idxA].x , vertices[edges[mem.edgeIdx].idxA].z, edges[mem.edgeIdx].idxA ))
                 else:
-                    self.verts.append( vert2D( vertices[edges[mem.edge].b].x , vertices[edges[mem.edge].b].z, edges[mem.edge].b ))
+                    self.verts.append( vert2D( vertices[edges[mem.edgeIdx].idxB].x , vertices[edges[mem.edgeIdx].idxB].z, edges[mem.edgeIdx].idxB ))
             
             for il in sF.innerLoops:
                 holeVerts = []
                 for mem in il.edgeLoopMembers:
                     if not mem.flipped:
-                        holeVerts.append( vert2D( vertices[edges[mem.edge].a].x , vertices[edges[mem.edge].a].z, edges[mem.edge].a ))
+                        holeVerts.append( vert2D( vertices[edges[mem.edgeIdx].idxA].x , vertices[edges[mem.edgeIdx].idxA].z, edges[mem.edgeIdx].idxA ))
                     else:
-                        holeVerts.append( vert2D( vertices[edges[mem.edge].b].x , vertices[edges[mem.edge].b].z, edges[mem.edge].b ))
+                        holeVerts.append( vert2D( vertices[edges[mem.edgeIdx].idxB].x , vertices[edges[mem.edgeIdx].idxB].z, edges[mem.edgeIdx].idxB ))
                 self.holes.append(holeVerts)
             
         else:
@@ -318,17 +318,17 @@ class polygon:
             print("Z is least significant")'''
             for mem in sF.borderLoop.edgeLoopMembers:
                 if not mem.flipped:
-                    self.verts.append( vert2D( vertices[edges[mem.edge].a].x , vertices[edges[mem.edge].a].y, edges[mem.edge].a ))
+                    self.verts.append( vert2D( vertices[edges[mem.edgeIdx].idxA].x , vertices[edges[mem.edgeIdx].idxA].y, edges[mem.edgeIdx].idxA ))
                 else:
-                    self.verts.append( vert2D( vertices[edges[mem.edge].b].x , vertices[edges[mem.edge].b].y, edges[mem.edge].b ))
+                    self.verts.append( vert2D( vertices[edges[mem.edgeIdx].idxB].x , vertices[edges[mem.edgeIdx].idxB].y, edges[mem.edgeIdx].idxB ))
             
             for il in sF.innerLoops:
                 holeVerts = []
                 for mem in il.edgeLoopMembers:
                     if not mem.flipped:
-                        holeVerts.append( vert2D( vertices[edges[mem.edge].a].x , vertices[edges[mem.edge].a].y, edges[mem.edge].a ))
+                        holeVerts.append( vert2D( vertices[edges[mem.edgeIdx].idxA].x , vertices[edges[mem.edgeIdx].idxA].y, edges[mem.edgeIdx].idxA ))
                     else:
-                        holeVerts.append( vert2D( vertices[edges[mem.edge].b].x , vertices[edges[mem.edge].b].y, edges[mem.edge].b ))
+                        holeVerts.append( vert2D( vertices[edges[mem.edgeIdx].idxB].x , vertices[edges[mem.edgeIdx].idxB].y, edges[mem.edgeIdx].idxB ))
                 self.holes.append(holeVerts)
         #Now we need to ensure that the vert order is counter-clockwise
         area = 0.0
